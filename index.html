@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Co-opolis · Cathedrals of the Collective</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root {
+  --bg: #0b0b0b; --fg: #f4f1ea; --muted: rgba(244,241,234,.55); --faint: rgba(244,241,234,.16);
+  --cream: #efe6d0; --blue: #b5cfd8; --terra: #a8563a; --yellow: #e6c65c;
+  --blueT: rgba(111,151,166,.24); --blueTab: rgba(111,151,166,.55); --tabT: rgba(244,241,234,.09);
+  --sans: "Helvetica Neue", Helvetica, Arial, sans-serif; --serif: "Newsreader", Georgia, serif;
+  --panel-w: 280px; --m: 22px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-weight: 300; }
+a { color: inherit; }
+.marks { position: relative; }
+.marks > i { position: absolute; width: 16px; height: 16px; pointer-events: none; }
+.marks > i::before, .marks > i::after { content: ""; position: absolute; background: var(--fg); }
+.marks > i::before { width: 1px; height: 12px; } .marks > i::after { width: 12px; height: 1px; }
+.marks > i:nth-child(1) { left: -22px; top: -22px; } .marks > i:nth-child(1)::before { left: 16px; top: 0; } .marks > i:nth-child(1)::after { left: 0; top: 16px; }
+.marks > i:nth-child(2) { right: -22px; top: -22px; } .marks > i:nth-child(2)::before { right: 16px; top: 0; } .marks > i:nth-child(2)::after { right: 0; top: 16px; }
+.marks > i:nth-child(3) { left: -22px; bottom: -22px; } .marks > i:nth-child(3)::before { left: 16px; bottom: 0; } .marks > i:nth-child(3)::after { left: 0; bottom: 16px; }
+.marks > i:nth-child(4) { right: -22px; bottom: -22px; } .marks > i:nth-child(4)::before { right: 16px; bottom: 0; } .marks > i:nth-child(4)::after { right: 0; bottom: 16px; }
+
+/* ---------- folder cover (hero) ---------- */
+#hero { height: 100vh; position: relative; }
+#folder { position: absolute; inset: 0; pointer-events: none; }
+.logo { font-family: var(--serif); font-weight: 600; font-size: 26px; line-height: .95; letter-spacing: -.01em; }
+#hero .head { position: absolute; left: calc(var(--m) + 24px); top: calc(var(--m) + 14px); display: flex; align-items: baseline; gap: 14px; }
+.head .nm { font: 300 14px var(--sans); letter-spacing: .02em; }
+.head .pr { font: 200 11px var(--sans); color: var(--muted); }
+.navtabs { display: flex; gap: 8px; }
+.navtabs button { background: rgba(11,11,11,.35); border: 1px solid rgba(244,241,234,.45); color: var(--fg); font: 300 12.5px var(--sans); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.navtabs button:hover, .navtabs button.on { background: var(--blueTab); }
+#hero .navtabs { position: absolute; right: calc(var(--m) + 18px); top: calc(var(--m) + 2px); }
+#hero h1 { position: absolute; left: 6%; top: 38%; width: min(440px, 40vw); margin: 0; font-family: var(--serif); font-weight: 400; font-size: clamp(19px, 2.1vw, 30px); line-height: 1.06; letter-spacing: -.01em; }
+#hero h1 mark { background: rgba(92,128,141,.96); color: #f4f1ea; padding: 0 .08em; }
+#hero .lede { position: absolute; left: calc(6% + 18px); bottom: 13%; width: min(300px, 38vw); font-size: 11.5px; line-height: 1.5; font-weight: 200; color: rgba(244,241,234,.82); }
+#hero .lede h2 { font: 300 12.5px var(--sans); margin: 0 0 6px; color: var(--fg); }
+#hero .cue { position: absolute; left: calc(var(--m) + 22px); bottom: calc(var(--m) + 16px); display: flex; align-items: flex-end; gap: 10px; cursor: pointer; background: none; border: 0; color: var(--muted); font: 200 10px var(--sans); letter-spacing: .2em; text-transform: uppercase; padding: 0; }
+#hero .cue i { display: block; width: 1px; height: 26px; background: var(--muted); animation: cue 2s infinite; }
+@keyframes cue { 0%,100% { transform: scaleY(.3); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } }
+#scrollind { position: fixed; right: calc(var(--m) + 8px); top: 50%; transform: translateY(-50%); width: 1px; height: 150px; background: rgba(244,241,234,.35); z-index: 2500; }
+body.mapview #scrollind { opacity: 0; }
+#scrollind { transition: opacity .3s; }
+#scrollind b { position: absolute; left: -2px; width: 5px; height: 26px; border-radius: 3px; background: var(--fg); top: 0; transition: top .1s; }
+
+/* ---------- sliding documents ---------- */
+.doc { position: fixed; top: calc(var(--m) + 52px); bottom: calc(var(--m) + 10px); right: calc(var(--m) + 10px); width: min(600px, 48vw); z-index: 3000;
+  background: rgba(92,128,141,.96); border: 1px solid rgba(244,241,234,.25); border-radius: 10px; transform: translateX(calc(100% + 60px)); transition: transform .5s ease;
+  overflow-y: auto; padding: 48px 50px 50px; }
+.doc.open { transform: none; }
+.doc .close { position: absolute; right: 14px; top: 12px; background: none; border: 1px solid var(--faint); color: var(--fg); width: 24px; height: 24px; cursor: pointer; font: 200 14px var(--sans); border-radius: 6px; }
+.doc .inner { font-size: 12.5px; line-height: 1.6; font-weight: 300; }
+.doc h2 { font-family: var(--serif); font-weight: 400; font-size: 24px; margin: 0 0 14px; line-height: 1.15; }
+.doc h3 { font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(244,241,234,.75); margin: 20px 0 6px; font-weight: 300; }
+.doc p { margin: 0 0 11px; }
+.doc .small { font-size: 11px; color: rgba(244,241,234,.8); }
+.doc a { color: #f4f1ea; }
+.doc sup { font-size: 8px; line-height: 0; margin-left: 1px; }
+.doc ol.fn { margin: 0; padding-left: 18px; font-size: 10.5px; line-height: 1.45; } .doc ol.fn li { margin: 0 0 5px; overflow-wrap: anywhere; }
+@media (max-width: 800px) { .doc { width: 92vw; } }
+.doc ul.apa { list-style: none; padding: 0; margin: 0; } .doc ul.apa li { padding-left: 24px; text-indent: -24px; margin: 0 0 8px; overflow-wrap: anywhere; }
+
+body.doc-open #map { cursor: default; }
+body.playing #timeline { opacity: .92 !important; pointer-events: auto !important; bottom: 40px; z-index: 975; }
+body.playing #timeline:hover { opacity: 1 !important; }
+body.playing #timeline { background: linear-gradient(to top, rgba(11,11,11,.55), rgba(11,11,11,0)); padding-top: 6px; }
+body.playing #yearlbl { font-size: 26px; color: #e6c65c; }
+body.playing #tlctl { justify-content: flex-end; }
+body.playing #evlbl { color: var(--fg); }
+
+/* ---------- top bar ---------- */
+#bar { position: fixed; top: 0; left: 0; right: 0; height: 46px; z-index: 2000; display: flex; align-items: center; justify-content: space-between; padding: 0 18px 0 22px;
+  background: none; transform: translateY(-110%); transition: transform .45s ease; text-shadow: 0 0 6px #000; }
+#bar.show { transform: none; }
+body.immersive #bar:not(.peek) { transform: translateY(-110%); }
+#bar .head { display: flex; align-items: baseline; gap: 14px; }
+#bar .navtabs button { padding: 4px 10px; font-size: 11.5px; }
+#peekzone { position: fixed; top: 0; left: 0; right: 0; height: 14px; z-index: 1999; }
+
+/* ---------- map ---------- */
+#mapsec { height: 100vh; position: relative; overflow: hidden; }
+#map { position: absolute; inset: 0; background: var(--bg); }
+.leaflet-container { background: var(--bg); font-family: var(--sans); }
+.leaflet-pane.leaflet-osm-pane { filter: grayscale(1) invert(1) brightness(.85) contrast(2); }
+.leaflet-pane.leaflet-sat-pane { filter: grayscale(1) brightness(.75) contrast(1.15); }
+.leaflet-pane.leaflet-cells-pane img { filter: grayscale(1) contrast(1.1); }
+.leaflet-control-zoom { border: 0 !important; margin: 6px 0 0 16px !important; }
+.recenter { margin: 58px 0 0 16px !important; background: rgba(11,11,11,.7); color: var(--fg); border: 1px solid var(--faint); font: 200 10.5px var(--sans); letter-spacing: .06em; padding: 5px 8px; cursor: pointer; border-radius: 4px; }
+.recenter:hover, #resetL:hover { background: var(--blueTab); }
+.leaflet-control-zoom a { background: rgba(11,11,11,.7) !important; color: var(--fg) !important; border: 1px solid var(--faint) !important; font-weight: 200; width: 26px !important; height: 26px !important; line-height: 24px !important; }
+#vignette { position: absolute; inset: 0; pointer-events: none; z-index: 900;
+  background: radial-gradient(ellipse 70% 72% at 46% 50%, rgba(11,11,11,0) 55%, rgba(11,11,11,.55) 82%, rgba(11,11,11,.95) 100%); }
+.lbl { color: var(--fg); white-space: nowrap; pointer-events: none; text-shadow: 0 0 3px #000, 0 0 6px #000; font-weight: 200; position: relative; }
+.lbl.city { font-size: 11px; transform: translate(5px, -7px); }
+.lbl.city.big { font-size: 13px; font-weight: 300; }
+.lbl.city::before { content: ""; position: absolute; left: -6px; top: 6px; width: 3px; height: 3px; background: var(--fg); border-radius: 50%; }
+.lbl.region, .lbl.country, .lbl.sea, .lbl.river { display: inline-block; transform: translate(-50%, -50%); }
+.lbl.region { font-size: 10px; letter-spacing: .32em; text-transform: uppercase; color: rgba(244,241,234,.45); }
+.lbl.country { font-size: 13px; letter-spacing: .5em; text-transform: uppercase; color: rgba(244,241,234,.35); }
+.lbl.sea { font-size: 11px; letter-spacing: .4em; text-transform: uppercase; font-style: italic; color: rgba(181,207,216,.45); }
+.lbl.river { font-size: 10px; font-style: italic; color: rgba(181,207,216,.8); transform: translate(-50%, -50%) rotate(var(--r, 0deg)); }
+.coop { width: 6px; height: 6px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 0 1.5px rgba(0,0,0,.7); }
+.coop.undated { opacity: .6; }
+.coop.doc2 { width: 9px; height: 9px; background: var(--cream); box-shadow: 0 0 0 1.5px #000, 0 0 0 2.5px var(--cream); opacity: 1; }
+.coop.huile { border-radius: 0; transform: rotate(45deg); }
+.depot { width: 9px; height: 9px; border: 1.5px solid var(--terra); background: #000; }
+.note { font-size: 13px; color: var(--fg); white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 7px #000; font-weight: 300; }
+.note b { font-weight: 200; font-size: 18px; margin-right: 4px; }
+#map.far .note span { display: none; }
+.leaflet-tooltip { background: rgba(11,11,11,.9); color: var(--fg); border: 1px solid var(--faint); border-radius: 0; font: 300 11px var(--sans); box-shadow: none; }
+.leaflet-tooltip:before { display: none; }
+
+/* post-its in screen space */
+#pitsvg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 905; pointer-events: none; }
+.postit { position: absolute; z-index: 906; width: 118px; background: var(--yellow); color: #1d1a12; padding: 7px 8px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  font-size: 10px; line-height: 1.33; font-weight: 400; transition: opacity .25s; }
+.postit h4 { margin: 0 0 4px; font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 500; }
+.postit .tx { max-height: 132px; overflow-y: auto; padding-right: 2px; }
+.postit .tx::-webkit-scrollbar { width: 3px; } .postit .tx::-webkit-scrollbar-thumb { background: rgba(0,0,0,.35); }
+.postit.off { opacity: 0; pointer-events: none; }
+
+/* scale + north */
+#scale { position: absolute; right: calc(var(--panel-w) + 26px); bottom: 104px; z-index: 950; display: flex; align-items: flex-end; gap: 12px; transition: right .35s, opacity .3s; }
+#scale .bar { height: 5px; border: 1px solid var(--fg); border-top: 0; margin-left: auto; }
+#scale .lbl2 { font-size: 11px; margin-bottom: 3px; text-align: right; }
+body.collapsed #scale, body.collapsed #timeline, body.collapsed #corpus { right: 0; }
+body.collapsed #scale { right: 26px; } body.collapsed #timeline { right: 26px; }
+
+/* panel */
+#panel { position: absolute; top: 0; right: 0; bottom: 0; width: var(--panel-w); z-index: 1000; background: rgba(11,11,11,.78); backdrop-filter: blur(6px);
+  border-left: 1px solid var(--faint); overflow-y: auto; padding: 60px 16px 30px; transition: transform .35s, padding .35s; }
+body.immersive #panel { padding-top: 18px; }
+body.collapsed #panel { transform: translateX(100%); }
+#panel .ph { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.tabbtn { display: inline-block; background: var(--tabT); border: 1px solid rgba(244,241,234,.22); border-bottom: 0; border-radius: 9px 9px 0 0; color: var(--fg); font: 200 13px var(--sans);
+  padding: 6px 16px 5px; cursor: pointer; }
+.tabbtn.on { background: var(--blueTab); }
+.tabrule { height: 1px; background: rgba(244,241,234,.22); margin-bottom: 4px; }
+#panel .phb { display: flex; gap: 6px; align-items: center; }
+#resetL { background: none; border: 1px solid var(--faint); color: var(--fg); height: 22px; padding: 0 8px; cursor: pointer; font: 200 10.5px var(--sans); letter-spacing: .06em; border-radius: 5px; }
+#collapse { background: none; border: 1px solid var(--faint); color: var(--fg); width: 22px; height: 22px; cursor: pointer; font: 200 16px/18px var(--sans); border-radius: 5px; }
+#reopen { position: absolute; right: 0; top: 50%; z-index: 1001; transform: translateY(-50%) translateX(100%); transition: transform .35s; writing-mode: vertical-rl;
+  background: var(--tabT); border: 1px solid rgba(244,241,234,.22); border-right: 0; color: var(--fg); font: 200 12px var(--sans); letter-spacing: .1em; padding: 14px 7px; border-radius: 9px 0 0 9px; cursor: pointer; backdrop-filter: blur(4px); }
+body.collapsed #reopen { transform: translateY(-50%); }
+.toggle { display: flex; align-items: center; gap: 12px; padding: 7px 0 7px 4px; border-bottom: 1px solid rgba(244,241,234,.07); cursor: pointer; font-size: 12px; font-weight: 200; user-select: none; }
+.toggle .box { width: 11px; height: 11px; border: 1px solid var(--fg); flex: none; position: relative; }
+.toggle .box::before, .toggle .box::after { content: ""; position: absolute; left: 50%; top: 50%; width: 19px; height: 1px; background: var(--fg); opacity: 0; transition: opacity .15s; }
+.toggle .box::before { transform: translate(-50%, -50%) rotate(45deg); } .toggle .box::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.toggle.on .box::before, .toggle.on .box::after { opacity: 1; }
+.toggle .sw { margin-left: auto; display: flex; align-items: center; }
+.legend { display: grid; grid-template-columns: 12px 1fr; gap: 3px 8px; font-size: 10.5px; color: var(--muted); margin: 6px 0 6px 27px; }
+.legend i { width: 12px; height: 9px; display: block; }
+#corpusBtnWrap { margin-top: 26px; }
+
+/* corpus: a single row of overlapping folder tabs along the bottom of the screen */
+#corpus { position: absolute; left: 0; right: var(--panel-w); bottom: 0; height: 330px; z-index: 980; pointer-events: none; transform: translateY(100%); transition: transform .45s ease, right .35s; }
+#corpus.open { transform: none; }
+#corpus::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: rgba(244,241,234,.5); }
+#strip { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; display: flex; align-items: flex-end; overflow-x: auto; overflow-y: hidden; padding: 0 26px; scrollbar-width: none; }
+#strip::-webkit-scrollbar { display: none; }
+.card { flex: none; width: 260px; margin-right: -108px; pointer-events: auto; position: relative; font-family: var(--sans); font-weight: 200; transition: transform .35s ease; }
+.card .tab { display: block; padding: 7px 11px 6px; font-size: 11px; font-weight: 200; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(30,32,33,.72); backdrop-filter: blur(5px); border: 1px solid rgba(244,241,234,.28); border-bottom: 0; border-radius: 9px 9px 0 0; width: 144px; box-sizing: border-box; }
+.card:hover { transform: translateY(-4px); }
+.card .body { max-height: 0; overflow: hidden; background: rgba(92,128,141,.94); font-size: 11.5px; line-height: 1.5; transition: max-height .4s ease; border: 0 solid rgba(181,207,216,.7); }
+.card .inner { padding: 10px 13px 12px; max-height: 250px; overflow-y: auto; }
+.card.on { z-index: 50; transform: translateY(-6px); }
+.card.on .tab { background: rgba(92,128,141,.96); border-color: rgba(181,207,216,.7); }
+.card.on .body { max-height: 270px; border-width: 0 1px; }
+.card ul { margin: 0; padding-left: 15px; } .card li { margin: 1px 0; }
+.card img { width: 100%; height: 110px; object-fit: cover; filter: grayscale(1); margin-top: 8px; display: block; }
+.card .src { font-size: 10px; color: rgba(244,241,234,.8); margin-top: 8px; border-top: 1px solid rgba(244,241,234,.25); padding-top: 6px; overflow-wrap: anywhere; }
+body.corpus-open #timeline, body.corpus-open #scale { opacity: 0; pointer-events: none; }
+#search { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--faint); color: var(--fg); padding: 6px 2px; font: 200 12px var(--sans); outline: none; margin-top: 8px; }
+#ccount { font-size: 10.5px; color: var(--muted); margin-top: 6px; font-weight: 200; }
+
+/* timeline */
+#timeline { position: absolute; left: 26px; right: calc(var(--panel-w) + 26px); bottom: 14px; z-index: 950; transition: right .35s, opacity .3s; }
+#tlsvg { width: 100%; height: 62px; display: block; cursor: pointer; }
+#tlctl { display: flex; align-items: center; gap: 12px; font-size: 10.5px; color: var(--muted); font-weight: 200; }
+#play { background: none; border: 1px solid var(--faint); color: var(--fg); font: 300 10px var(--sans); letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; cursor: pointer; border-radius: 5px; }
+#yearlbl { font-size: 20px; color: var(--fg); font-weight: 200; }
+#evlbl { color: var(--fg); }
+
+@media (max-width: 800px) { :root { --panel-w: 86vw; --m: 10px; } #scale { display: none; } #hero .navtabs { top: auto; bottom: 70px; right: 20px; flex-wrap: wrap; } #hero h1 { top: 24%; } }
+</style>
+</head>
+<body>
+<section id="hero">
+  <svg id="folder"></svg>
+  <div class="head"><span class="nm">Co-opolis</span><span class="pr">Research prototype · Zineb Mustapha, Architect EPFL</span></div>
+  <div class="navtabs"><button data-doc="letter">Cover letter</button><button data-doc="research">Research direction</button><button data-doc="refs">References</button></div>
+  <h1><mark>Cathedrals</mark> of the Collective: Cooperative <mark>Wineries</mark> as Civic Infrastructure in <mark>Southern France</mark> (1900–1970)</h1>
+  <div class="lede marks"><i></i><i></i><i></i><i></i>
+    <h2>An open atlas of the cooperative circuit</h2>
+    More than 550 cooperative wineries were built in Languedoc Roussillon in the twentieth century. This prototype maps them, follows the circuit that linked growers to urban cooperatives, and sets out the hypotheses of a doctoral research.
+  </div>
+  <button class="cue" id="cue"><i></i>Scroll to the map</button>
+</section>
+
+<div id="scrollind"><b></b></div>
+<div id="peekzone"></div>
+<header id="bar">
+  <div class="head"><span class="nm">Co-opolis</span><span class="pr">Research prototype · Zineb Mustapha, Architect EPFL</span></div>
+  <div class="navtabs"><button data-doc="letter">Cover letter</button><button data-doc="research">Research direction</button><button data-doc="refs">References</button></div>
+</header>
+
+<section id="mapsec">
+  <div id="map"></div>
+  <div id="vignette"></div>
+  <svg id="pitsvg"></svg>
+  <div id="pits"></div>
+  <div id="scale">
+    <div><div class="lbl2" id="scaleLbl"></div><div class="bar" id="scaleBar"></div></div>
+    <svg width="14" height="30" viewBox="0 0 14 30" aria-label="North"><text x="7" y="9" fill="#f4f1ea" font-size="9" font-weight="300" text-anchor="middle" font-family="Helvetica Neue, Arial">N</text><path d="M7 12 L11 29 L7 25 L3 29 Z" fill="none" stroke="#f4f1ea" stroke-width=".8"/><path d="M7 12 L7 25 L3 29 Z" fill="#f4f1ea"/></svg>
+  </div>
+  <aside id="panel">
+    <div class="ph"><span class="tabbtn on">Layers</span><span class="phb"><button id="resetL" title="Back to the default layers">Reset</button><button id="collapse" title="Hide panel">−</button></span></div>
+    <div class="tabrule"></div>
+    <div id="toggles"></div>
+    <div id="corpusBtnWrap"><button class="tabbtn" id="corpusBtn">Corpus</button><div class="tabrule"></div><input id="search" type="search" placeholder="Search a winery, a municipality"><div id="ccount"></div></div>
+  </aside>
+  <button id="reopen">Layers</button>
+  <div id="corpus"><div id="strip"></div></div>
+  <div id="timeline">
+    <svg id="tlsvg"></svg>
+    <div id="tlctl"><button id="play">▶ Play</button><span>until</span><span id="yearlbl">1970</span><span id="evlbl"></span></div>
+  </div>
+</section>
+
+<section class="doc" id="doc-letter"><button class="close">×</button><div class="inner marks"><i></i><i></i><i></i><i></i><div id="letterBody"></div></div></section>
+<section class="doc" id="doc-research"><button class="close">×</button><div class="inner marks"><i></i><i></i><i></i><i></i><div id="researchBody"></div></div></section>
+<section class="doc" id="doc-refs"><button class="close">×</button><div class="inner marks"><i></i><i></i><i></i><i></i><div id="refsBody"></div></div></section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data.js"></script>
+<script src="basemap.js"></script>
+<script src="content.js"></script>
+<script>
+const DATA = window.COOPOLIS, BASE = window.BASEMAP, C = window.CONTENT;
+const YEAR_MIN = 1895, YEAR_MAX = 1975;
+let yearMax = 1970;
+
+/* ---------- folder outline (cover) ---------- */
+function drawFolder() {
+  const svg = document.getElementById('folder'), W = innerWidth, H = innerHeight, m = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m')), r = 14;
+  const tabW = Math.min(W * .46, 560), drop = 40, slope = 26, x0 = m, y0 = m, x1 = W - m, y1 = H - m;
+  const d = `M${x0 + r},${y0} H${x0 + tabW - 6} Q${x0 + tabW},${y0} ${x0 + tabW + 4},${y0 + 6} L${x0 + tabW + slope - 4},${y0 + drop - 6} Q${x0 + tabW + slope},${y0 + drop} ${x0 + tabW + slope + 8},${y0 + drop}
+    H${x1 - r} Q${x1},${y0 + drop} ${x1},${y0 + drop + r} V${y1 - r} Q${x1},${y1} ${x1 - r},${y1} H${x0 + r} Q${x0},${y1} ${x0},${y1 - r} V${y0 + r} Q${x0},${y0} ${x0 + r},${y0} Z`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="rgba(244,241,234,.8)" stroke-width="1"/>`;
+}
+drawFolder(); addEventListener('resize', drawFolder);
+
+/* ---------- documents (letter, research, references) ---------- */
+const L_ = C.letter;
+document.getElementById('letterBody').innerHTML =
+  `<p class="small">${L_.head.join('<br>')}</p><p class="small">${L_.to.join('<br>')}</p><p class="small">${L_.date}</p><p><u>${L_.subject}</u></p>` +
+  L_.paragraphs.map(p => `<p>${p.replace('{statement}', C.statementLink).replace('{panels}', C.panelsLink)}</p>`).join('');
+const R_ = C.research;
+document.getElementById('researchBody').innerHTML = `<h3>${R_.kicker}</h3><h2>${R_.title}</h2>` + R_.sections.map(([h, t]) => `<h3>${h}</h3><p>${t}</p>`).join('') +
+  `<h3>Notes</h3><ol class="fn">${R_.notes.map(n => `<li>${n.replace(/(https:\/\/\S+)$/, '<a href="$1" target="_blank" rel="noopener">$1</a>')}</li>`).join('')}</ol>`;
+const F_ = C.references;
+document.getElementById('refsBody').innerHTML = `<h2>References</h2><p>${F_.intro}</p>` +
+  F_.groups.map(([g, items]) => `<h3>${g}</h3><ul class="apa">${items.map(i => `<li>${i.replace(/(https:\/\/[^\s<]+?)(\.?)(?=\s|$)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>$2')}</li>`).join('')}</ul>`).join('') +
+  `<h3>Hypotheses shown on the map</h3><ul class="apa" id="hypList"></ul>`;
+function openDoc(name) {
+  document.querySelectorAll('.doc').forEach(d => d.classList.toggle('open', d.id === 'doc-' + name && !d.classList.contains('open')));
+  const open = document.querySelector('.doc.open');
+  document.querySelectorAll('.navtabs button').forEach(b => b.classList.toggle('on', !!open && open.id === 'doc-' + b.dataset.doc));
+  document.body.classList.toggle('doc-open', !!open);
+  if (typeof map === 'undefined') return;
+  const h = ['dragging', 'touchZoom', 'doubleClickZoom', 'boxZoom', 'keyboard'];
+  h.forEach(k => open ? map[k].disable() : map[k].enable());
+  open ? map.scrollWheelZoom.disable() : (mapInView && map.scrollWheelZoom.enable());
+}
+document.querySelectorAll('.navtabs button').forEach(b => b.onclick = () => openDoc(b.dataset.doc));
+document.querySelectorAll('.doc .close').forEach(b => b.onclick = () => openDoc(null));
+
+/* ---------- texts for map content ---------- */
+const NOTE_EN = {
+  'n-maraussan': ['Les Vignerons Libres', ['Constituted on 23 December 1901', 'Often described as the first cooperative winery of the Midi', 'Letterhead: 232 member growers, 65,000 hl cooperative harvest', 'Member of the Bourse des Coopératives Socialistes (Paris)']],
+  'n-bellevilloise': ['La Bellevilloise', ['Parisian consumer cooperative', 'Listed among the co-associated cooperative and trade union organisations of the Vignerons Libres', 'The urban end of the circuit, from producer to consumer']],
+  'n-dupleix': ['Bourse des Coopératives Socialistes', ['Palais du Travail, place Dupleix, Paris', 'Federation joined by the Vignerons Libres', 'Location read on the 1901 to 1903 letterhead, to be confirmed in archives']],
+  'n-olonzac': ['First cooperative distillery', ['Olonzac (Hérault), 1910', 'Processes the by-products of wine making', 'Waste already enters the collective tool']],
+  'n-combas': ['Combas winery · H. Floutier', ['1924, first winery built alone by Henri Floutier', 'Floutier will work on more than 70 cooperative wineries until the late 1960s']],
+  'n-beauvoisin': ['Beauvoisin winery · H. Floutier', ['1928', 'Horizontal pediment, cartouche with a mask of Bacchus', 'The winery becomes the monument of the village']],
+  'n-sttheodorit': ['Saint-Théodorit winery · H. Floutier', ['1929 and 1930', 'Unique semicircular plan in reinforced concrete', 'Culmination of the horseshoe plan around the working space']],
+};
+const EVENTS_EN = { 1901: 'Maraussan: Les Vignerons Libres', 1907: 'Revolt of the Midi winegrowers', 1910: 'First cooperative distillery (Olonzac)',
+  1924: 'Southern federation of cooperative wineries', 1932: 'National confederation of cooperative wineries', 1937: 'Construction peak (1937 and 1938)' };
+DATA.events.forEach(e => e.label = EVENTS_EN[e.year] || e.label);
+const HYP = [
+  { at: 'sttheodorit', side: 'R', y: .2, title: 'H1 · Monumentality as affirmation', text: 'Where the cooperative had to assert itself politically and socially, it built a cathedral; where state credit and model plans framed it, it built a shed.' },
+  { at: 'maraussan', side: 'L', y: .55, title: 'H2 · From civic building to wine factory', text: 'Productivist extensions eroded the civic role of the winery and fed the shame attached to the cooperative and its anonymous bulk wine.' },
+  { at: 'charenton', side: 'L', y: .2, title: 'H3 · Civic use as a condition of survival', text: 'The buildings that kept a civic use, as places of gathering, sale or culture, are those that endured and are reused today.' },
+];
+
+/* ---------- map ---------- */
+const FR = L.latLngBounds([41.2, -5.3], [51.2, 9.7]);
+const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 5, maxZoom: 15, zoomSnap: 0.25, scrollWheelZoom: false });
+const homeView = () => map.flyToBounds(FR, { paddingTopLeft: [150, 30], paddingBottomRight: [440, 90], duration: 1.2 });
+map.fitBounds(FR, { paddingTopLeft: [150, 30], paddingBottomRight: [440, 90] });
+const Recenter = L.Control.extend({ options: { position: 'topleft' }, onAdd() { const b = L.DomUtil.create('button', 'leaflet-control recenter'); b.textContent = 'Recenter'; b.title = 'Back to the whole map';
+  L.DomEvent.disableClickPropagation(b); b.onclick = homeView; return b; } });
+new Recenter().addTo(map); L.control.zoom({ position: 'topleft' }).addTo(map);
+[['sat', 210], ['osm', 220], ['landuse', 240], ['cells', 300], ['basevec', 350], ['gridp', 380], ['labels', 450]].forEach(([n, z]) => { map.createPane(n); map.getPane(n).style.zIndex = z; });
+map.getPane('labels').style.pointerEvents = 'none';
+const vecRenderer = L.canvas({ pane: 'basevec', padding: 0.3 });
+const base = L.layerGroup().addTo(map);
+const roadStyle = { 1: [2.0, '#f4f1ea', 1], 2: [1.0, '#cfcac0', .85], 3: [0.55, '#8d8a84', .7] };
+const roadWidth = t => roadStyle[t][0] * Math.max(.6, (map.getZoom() - 4) / 3);
+const roadLayers = [], ll = c => c.map(p => [p[1], p[0]]);
+BASE.coast.forEach(([, c]) => L.polyline(ll(c), { renderer: vecRenderer, color: '#c9c4ba', weight: .9, opacity: .8, interactive: false }).addTo(base));
+BASE.lakes.forEach(([, c]) => L.polyline(ll(c), { renderer: vecRenderer, color: '#7f9ba5', weight: .7, opacity: .8, interactive: false }).addTo(base));
+BASE.rivers.forEach(([, c]) => L.polyline(ll(c), { renderer: vecRenderer, color: '#7f9ba5', weight: .8, opacity: .85, interactive: false }).addTo(base));
+BASE.borders.forEach(([, c]) => L.polyline(ll(c), { renderer: vecRenderer, color: '#f4f1ea', weight: 1.3, opacity: .75, dashArray: '6 3 1 3', interactive: false }).addTo(base));
+[3, 2, 1].forEach(t => BASE.roads.filter(r => r[0].t === t).forEach(([, c]) => {
+  if (t === 1) { const cas = L.polyline(ll(c), { renderer: vecRenderer, color: '#000', weight: roadWidth(1) + 2.4, opacity: .95, interactive: false }).addTo(base); cas.t = 'case'; roadLayers.push(cas); }
+  const l = L.polyline(ll(c), { renderer: vecRenderer, color: roadStyle[t][1], weight: roadWidth(t), opacity: roadStyle[t][2], interactive: false }).addTo(base); l.t = t; roadLayers.push(l);
+}));
+map.on('zoomend', () => roadLayers.forEach(l => l.setStyle({ weight: l.t === 'case' ? roadWidth(1) + 2.4 : roadWidth(l.t) })));
+
+const labelLayers = []; let labelsOn = true;
+function addLabel(lat, lon, html, cls, minZ, maxZ = 20, style = '') {
+  const m = L.marker([lat, lon], { pane: 'labels', interactive: false, icon: L.divIcon({ className: '', iconSize: [0, 0], html: `<div class="lbl ${cls}" style="${style}">${html}</div>` }) });
+  m.minZ = minZ; m.maxZ = maxZ; labelLayers.push(m);
+}
+[['Hauts-de-France', 50.0, 2.8], ['Normandie', 49.05, 0.2], ['Île-de-France', 48.45, 2.95], ['Grand Est', 48.7, 5.7], ['Bretagne', 48.15, -3.0], ['Pays de la Loire', 47.35, -0.9],
+ ['Centre-Val de Loire', 47.55, 1.75], ['Bourgogne-Franche-Comté', 47.2, 4.9], ['Nouvelle-Aquitaine', 45.3, 0.1], ['Auvergne-Rhône-Alpes', 45.45, 4.6], ['Occitanie', 44.15, 2.2],
+ ['Provence-Alpes-Côte d’Azur', 44.05, 6.15], ['Corse', 42.15, 9.1]].forEach(([n, a, o]) => addLabel(a, o, n, 'region', 5, 7.5));
+[['España', 41.9, -2.2], ['Italia', 45.0, 8.6], ['Schweiz', 46.85, 8.1], ['Deutschland', 49.6, 8.4], ['Belgique', 50.75, 4.4], ['United Kingdom', 51.0, -1.6]].forEach(([n, a, o]) => addLabel(a, o, n, 'country', 5, 9));
+[['Mer Méditerranée', 42.6, 5.2], ['Océan Atlantique', 46.0, -3.8], ['La Manche', 50.15, -1.6], ['Golfe du Lion', 43.15, 3.95]].forEach(([n, a, o]) => addLabel(a, o, n, 'sea', 5, 10));
+[['Loire', 47.38, 0.95, -6], ['Seine', 49.12, 1.35, -20], ['Rhône', 44.45, 4.78, -82], ['Garonne', 44.55, 0.25, -35], ['Dordogne', 44.88, 0.75, 0], ['Hérault', 43.48, 3.45, -60],
+ ['Aude', 43.22, 2.6, 8], ['Orb', 43.42, 3.08, -55], ['Gardon', 43.92, 4.32, 20], ['Lot', 44.5, 1.1, 0]]
+  .forEach(([n, a, o, r]) => addLabel(a, o, n, 'river', ['Hérault', 'Aude', 'Orb', 'Gardon'].includes(n) ? 8 : 6, 20, `--r:${r}deg`));
+BASE.cities.forEach(c => addLabel(c.lat, c.lon, c.n, 'city' + (c.pop > 1e6 ? ' big' : ''), c.pop > 1e6 ? 5 : c.pop > 3e5 ? 6.5 : 8));
+function updateLabels() { const z = map.getZoom(); labelLayers.forEach(m => (z >= m.minZ && z <= m.maxZ && labelsOn) ? m.addTo(map) : m.remove()); }
+map.on('zoomend', updateLabels);
+
+const layers = {
+  osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { pane: 'osm', maxZoom: 18 }),
+  sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { pane: 'sat', maxZoom: 18, opacity: .42 }),
+  depts: L.geoJSON(DATA.departements, { pane: 'basevec', style: { color: '#8fb8c8', weight: 1.1, opacity: .85, fill: false, dashArray: '4 3' }, interactive: false }),
+  coops: L.layerGroup(), circuit: L.layerGroup(), depots: L.layerGroup(), notes: L.layerGroup(), hyp: L.layerGroup(),
+};
+
+/* land use recoloured */
+const PALETTE = { art: [168, 86, 58], ara: [239, 230, 208], vin: [201, 150, 72], pas: [143, 166, 130], for: [79, 107, 71], wat: [181, 207, 216] };
+const CLC = [
+  [[230,0,77],'art'],[[255,0,0],'art'],[[204,77,242],'art'],[[204,0,0],'art'],[[230,204,204],'art'],[[230,204,230],'art'],[[166,0,204],'art'],[[166,77,0],'art'],[[255,77,255],'art'],[[255,166,255],'art'],[[255,230,255],'art'],
+  [[255,255,168],'ara'],[[255,255,0],'ara'],[[230,230,0],'ara'],[[255,230,166],'ara'],[[255,230,77],'ara'],[[230,204,77],'ara'],[[242,204,166],'ara'],
+  [[230,128,0],'vin'],[[242,166,77],'vin'],[[230,166,0],'vin'], [[230,230,77],'pas'],[[204,242,77],'pas'],
+  [[128,255,0],'for'],[[0,166,0],'for'],[[77,255,0],'for'],[[166,255,128],'for'],[[166,230,77],'for'],[[166,242,0],'for'],
+  [[166,166,255],'wat'],[[77,77,255],'wat'],[[204,204,255],'wat'],[[230,230,255],'wat'],[[166,166,230],'wat'],[[0,204,242],'wat'],[[128,242,230],'wat'],[[0,255,166],'wat'],[[166,255,230],'wat'],[[230,242,255],'wat']];
+const clcCache = new Map();
+function clcCat(r, g, b) { const k = (r << 16) | (g << 8) | b; if (clcCache.has(k)) return clcCache.get(k);
+  let best = null, bd = 2200; for (const [c, cat] of CLC) { const d = (c[0]-r)**2 + (c[1]-g)**2 + (c[2]-b)**2; if (d < bd) { bd = d; best = cat; } } clcCache.set(k, best); return best; }
+const Landuse = L.GridLayer.extend({ createTile(coords, done) {
+  const S = 512, t = document.createElement('canvas'); t.width = t.height = S; const ctx = t.getContext('2d');
+  const a = L.CRS.EPSG3857.project(map.unproject([coords.x * S, coords.y * S], coords.z)), b = L.CRS.EPSG3857.project(map.unproject([(coords.x + 1) * S, (coords.y + 1) * S], coords.z));
+  const url = lyr => `https://data.geopf.fr/wms-r/wms?service=WMS&request=GetMap&version=1.3.0&layers=${lyr}&styles=&format=image/png&transparent=true&width=${S}&height=${S}&crs=EPSG:3857&bbox=${a.x},${b.y},${b.x},${a.y}`;
+  const load = tries => { const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { ctx.drawImage(img, 0, 0); try { const d = ctx.getImageData(0, 0, S, S), p = d.data;
+      for (let i = 0; i < p.length; i += 4) { if (p[i + 3] < 40) { p[i + 3] = 0; continue; } const cat = clcCat(p[i], p[i + 1], p[i + 2]);
+        if (!cat) { p[i + 3] = 0; continue; } const c = PALETTE[cat]; p[i] = c[0]; p[i + 1] = c[1]; p[i + 2] = c[2]; p[i + 3] = 150; }
+      ctx.putImageData(d, 0, 0); } catch (e) {} done(null, t); };
+    img.onerror = () => tries > 0 ? setTimeout(() => load(tries - 1), 400 + Math.random() * 800) : done(null, t);
+    img.src = url(tries % 2 ? 'LANDCOVER.CLC18' : 'LANDCOVER.CLC18_FR') + '&try=' + tries + '&t=' + Date.now(); };
+  load(7); return t; } });
+layers.landuse = new Landuse({ pane: 'landuse', tileSize: 512, updateWhenZooming: false, keepBuffer: 1 });
+
+/* cooperatives, routes, depots, notes */
+const coopMarkers = [];
+DATA.coops.forEach(c => {
+  const cls = ['coop', c.kind === 'huile' ? 'huile' : '', c.year ? '' : 'undated', (c.image || c.architect) ? 'doc2' : ''].join(' ');
+  const m = L.marker([c.lat, c.lon], { icon: L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [9, 9] }) })
+    .bindTooltip(`${c.name}${c.commune ? ' · ' + c.commune : ''}${c.year ? ' · ' + c.year : ''}`, { direction: 'top', offset: [0, -6] })
+    .on('click', e => { L.DomEvent.stopPropagation(e); openCard(c.id, true); });
+  m.data = c; coopMarkers.push(m); layers.coops.addLayer(m);
+});
+const byKey = Object.fromEntries([...DATA.depots, ...DATA.notes].map(d => [d.key, d]));
+Object.entries(BASE.routes).forEach(([k, pts]) => { const paris = ['bellevilloise', 'dupleix'].includes(k);
+  L.polyline(pts, { color: paris ? '#e05545' : '#d23c2f', weight: paris ? 1.3 : 2, opacity: .95, dashArray: paris ? '5 5' : null, interactive: false }).addTo(layers.circuit); });
+DATA.depots.forEach(d => L.marker([d.lat, d.lon], { icon: L.divIcon({ className: '', html: '<div class="depot"></div>', iconSize: [10, 10] }) })
+  .bindTooltip('Sales depot of the Vignerons Libres · ' + d.name.replace(/–/g, ' '), { direction: 'top' }).addTo(layers.depots));
+const noteMarkers = DATA.notes.map(n => {
+  const m = L.marker([n.lat, n.lon], { icon: L.divIcon({ className: '', html: `<div class="note"><b>+</b><span>${NOTE_EN[n.id][0]}</span></div>`, iconSize: [0, 0], iconAnchor: [6, 12] }) })
+    .on('click', e => { L.DomEvent.stopPropagation(e); openCard(n.id, true); });
+  m.data = n; layers.notes.addLayer(m); return m;
+});
+
+/* ---------- hypotheses: post-its fixed in screen space, elbow leader lines ---------- */
+const pitsEl = document.getElementById('pits'), pitsSvg = document.getElementById('pitsvg');
+let hypOn = true;
+const pits = HYP.map(h => { const el = document.createElement('div'); el.className = 'postit'; el.innerHTML = `<h4>${h.title}</h4><div class="tx">${h.text}</div>`;
+  pitsEl.appendChild(el); L.DomEvent.disableScrollPropagation(el); L.DomEvent.disableClickPropagation(el);
+  document.getElementById('hypList').insertAdjacentHTML('beforeend', `<li><b>${h.title}</b>: ${h.text}</li>`); return { h, el }; });
+function drawPits() {
+  const W = map.getSize().x, H = map.getSize().y, panel = document.body.classList.contains('collapsed') ? 0 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-w'));
+  const pw = 118, gap = 16, top0 = 64; let s = '';
+  ['L', 'R'].forEach(side => {
+    const group = pits.filter(p => p.h.side === side);
+    const total = group.reduce((t, p) => t + p.el.offsetHeight, 0) + gap * (group.length - 1);
+    let y = Math.max(top0, (H - (document.body.classList.contains('corpus-open') ? 60 : 110) - total) / 2);
+    group.forEach(({ h, el }) => {
+      const x = side === 'L' ? 70 : W - panel - pw - 40, top = y; y += el.offsetHeight + gap;
+      el.style.left = x + 'px'; el.style.top = top + 'px';
+      const p = byKey[h.at], pt = map.latLngToContainerPoint([p.lat, p.lon]);
+      const vis = hypOn && pt.x > 0 && pt.x < W - panel && pt.y > 0 && pt.y < H - 96;
+      el.classList.toggle('off', !vis); if (!vis) return;
+      const ey = top + 16, ex = side === 'L' ? x + pw : x, dir = side === 'L' ? 1 : -1;
+      let kx = pt.x - dir * Math.min(Math.abs(pt.y - ey), Math.abs(pt.x - ex) * .6);
+      if ((kx - ex) * dir < 0) kx = ex;
+      s += `<polyline points="${ex},${ey} ${kx},${ey} ${pt.x},${pt.y}" fill="none" stroke="#e6c65c" stroke-width="1"/><circle cx="${pt.x}" cy="${pt.y}" r="2.6" fill="#e6c65c"/>`;
+    });
+  });
+  pitsSvg.innerHTML = s;
+}
+map.on('move zoom resize', drawPits); addEventListener('resize', drawPits);
+
+/* ---------- grid ---------- */
+let gridOn = true, gridStepProj = 0, gridGround = 0;
+const REF_COS = Math.cos(46.5 * Math.PI / 180);
+function niceStep(m) { const p = Math.pow(10, Math.floor(Math.log10(m))); for (const f of [1, 2, 2.5, 5, 10]) if (f * p >= m) return f * p; }
+const GridLayer = L.Layer.extend({
+  onAdd(m) { this._c = L.DomUtil.create('canvas', '', m.getPane('gridp')); this._c.style.pointerEvents = 'none'; m.on('move zoom viewreset resize zoomend', this._draw, this); this._draw(); },
+  onRemove(m) { L.DomUtil.remove(this._c); m.off('move zoom viewreset resize zoomend', this._draw, this); },
+  _draw() {
+    const size = map.getSize(), dpr = window.devicePixelRatio || 1, c = this._c;
+    c.width = size.x * dpr; c.height = size.y * dpr; c.style.width = size.x + 'px'; c.style.height = size.y + 'px';
+    L.DomUtil.setPosition(c, map.containerPointToLayerPoint([0, 0]));
+    const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, size.x, size.y);
+    const mPerPxProj = 40075016.686 / Math.pow(2, map.getZoom() + 8);
+    gridGround = niceStep(mPerPxProj * REF_COS * 58); gridStepProj = gridGround / REF_COS;
+    const tl = L.CRS.EPSG3857.project(map.containerPointToLatLng([0, 0])), br = L.CRS.EPSG3857.project(map.containerPointToLatLng([size.x, size.y]));
+    ctx.strokeStyle = 'rgba(244,241,234,.32)'; ctx.lineWidth = .8; ctx.setLineDash([2, 4]); ctx.beginPath();
+    for (let x = Math.floor(tl.x / gridStepProj) * gridStepProj; x <= br.x; x += gridStepProj) { const px = Math.round(map.latLngToContainerPoint(L.CRS.EPSG3857.unproject(L.point(x, tl.y))).x) + .5; ctx.moveTo(px, 0); ctx.lineTo(px, size.y); }
+    for (let y = Math.floor(br.y / gridStepProj) * gridStepProj; y <= tl.y; y += gridStepProj) { const py = Math.round(map.latLngToContainerPoint(L.CRS.EPSG3857.unproject(L.point(tl.x, y))).y) + .5; ctx.moveTo(0, py); ctx.lineTo(size.x, py); }
+    ctx.stroke();
+    document.getElementById('scaleLbl').textContent = '1 cell ≈ ' + (gridGround >= 1000 ? gridGround / 1000 + ' km' : gridGround + ' m');
+    document.getElementById('scaleBar').style.width = Math.round(gridGround / (mPerPxProj * REF_COS)) + 'px';
+  } });
+layers.grid = new GridLayer();
+
+/* cell images (no caption): hover preview, click to pin */
+function cellAt(latlng) { const p = L.CRS.EPSG3857.project(latlng); const i = Math.floor(p.x / gridStepProj), j = Math.floor(p.y / gridStepProj);
+  const nw = L.CRS.EPSG3857.unproject(L.point(i * gridStepProj, (j + 1) * gridStepProj)), se = L.CRS.EPSG3857.unproject(L.point((i + 1) * gridStepProj, j * gridStepProj));
+  return { key: `${gridStepProj.toFixed(1)}:${i}:${j}`, bounds: L.latLngBounds(se, nw), nw, se }; }
+function cellSrc(cell) {
+  const inside = DATA.coops.filter(c => c.image && cell.bounds.contains([c.lat, c.lon]) && visible(c));
+  if (inside.length) return inside[0].image;
+  const a = L.CRS.EPSG3857.project(cell.nw), b = L.CRS.EPSG3857.project(cell.se);
+  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${a.x},${b.y},${b.x},${a.y}&bboxSR=3857&imageSR=3857&size=384,384&format=jpg&f=image`;
+}
+const makeCell = (cell, src) => { const o = L.imageOverlay(src || cellSrc(cell), cell.bounds, { pane: 'cells', opacity: .85, interactive: false }); o.src = src || cellSrc(cell); return o; };
+function pinCell(cell, src) {
+  const ov = makeCell(cell, src);
+  /* one image at a time per place: drop pins showing the same image, or overlapping a cell of another scale */
+  [...pinned].forEach(([k, p]) => { if (p.src === ov.src || (k.split(':')[0] !== cell.key.split(':')[0] && overlaps(p.getBounds(), cell.bounds))) { p.remove(); pinned.delete(k); } });
+  pinned.set(cell.key, ov.addTo(map)); return ov;
+}
+function overlaps(a, b) { const e = 1e-9; return a.getWest() < b.getEast() - e && b.getWest() < a.getEast() - e && a.getSouth() < b.getNorth() - e && b.getSouth() < a.getNorth() - e; }
+function clearPins() { pinned.forEach(p => p.remove()); pinned.clear(); }
+let hover = null, hoverKey = null, hoverTimer = null; const pinned = new Map();
+map.on('mousemove', e => { if (!gridOn || !gridStepProj) return; const cell = cellAt(e.latlng); if (cell.key === hoverKey) return;
+  hoverKey = cell.key; if (hover) { hover.remove(); hover = null; } clearTimeout(hoverTimer); if (pinned.has(cell.key)) return;
+  hoverTimer = setTimeout(() => { const src = cellSrc(cell); if ([...pinned.values()].some(p => p.src === src || (p.getBounds().contains(cell.bounds)))) return; hover = makeCell(cell, src).addTo(map); }, 280); });
+map.on('mouseout', () => { clearTimeout(hoverTimer); if (hover) { hover.remove(); hover = null; } hoverKey = null; });
+map.on('click', e => { if (document.body.classList.contains('doc-open')) return; goImmersive(); if (!gridOn) return; const cell = cellAt(e.latlng);
+  if (pinned.has(cell.key)) { pinned.get(cell.key).remove(); pinned.delete(cell.key); return; }
+  if (hover) { hover.remove(); hover = null; } pinCell(cell); });
+
+/* ---------- toggles ---------- */
+const LEGEND = [['art', 'Urban and industrial land'], ['ara', 'Arable land'], ['vin', 'Vineyards and permanent crops'], ['pas', 'Pastures and grazing land'], ['for', 'Forests and semi natural areas'], ['wat', 'Water and wetlands']];
+const TOGGLES = [
+  ['coops', 'Cooperative wineries (and a few oil mills)', true, '<span class="coop" style="display:inline-block"></span>'],
+  ['circuit', 'Distribution routes (Maraussan)', true, '<svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#d23c2f" stroke-width="2"/></svg>'],
+  ['depots', 'Sales depots', true, '<span class="depot" style="display:inline-block"></span>'],
+  ['notes', 'Research notes', true, '<span style="font-weight:200">+</span>'],
+  ['hyp', 'Hypotheses', true, '<span style="display:inline-block;width:9px;height:13px;background:#e6c65c"></span>'],
+  ['landuse', 'Land use', true, ''],
+  ['depts', 'Départements', false, '<svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#8fb8c8" stroke-width="1.1" stroke-dasharray="4 3"/></svg>'],
+  ['sat', 'Satellite views (all)', true, ''],
+  ['labels', 'Place names', true, ''],
+  ['osm', 'Detailed basemap (with text)', false, ''],
+  ['grid', 'Grid and scale', true, ''],
+];
+const tg = document.getElementById('toggles');
+TOGGLES.forEach(([key, label, on, sw]) => {
+  const el = document.createElement('div'); el.className = 'toggle' + (on ? ' on' : ''); el.dataset.key = key;
+  el.innerHTML = `<span class="box"></span><span>${label}</span><span class="sw">${sw}</span>`;
+  el.onclick = () => { const v = !el.classList.contains('on'); el.classList.toggle('on', v); setLayer(key, v); };
+  tg.appendChild(el);
+  if (key === 'landuse') { const lg = document.createElement('div'); lg.className = 'legend'; lg.id = 'luLegend'; lg.style.display = 'none';
+    lg.innerHTML = LEGEND.map(([k, t]) => `<i style="background:rgb(${PALETTE[k].join(',')})"></i><span>${t}</span>`).join(''); tg.appendChild(lg); }
+});
+function setLayer(key, v) {
+  if (key === 'labels') { labelsOn = v; updateLabels(); return; }
+  if (key === 'hyp') { hypOn = v; drawPits(); pitsSvg.style.display = v ? '' : 'none'; return; }
+  if (key === 'grid') { gridOn = v; document.getElementById('scale').style.visibility = v ? 'visible' : 'hidden'; if (!v) clearPins(); }
+  if (key === 'landuse') document.getElementById('luLegend').style.display = v ? '' : 'none';
+  v ? layers[key].addTo(map) : map.removeLayer(layers[key]);
+}
+
+/* ---------- corpus drawer: cards in a row ---------- */
+const strip = document.getElementById('strip');
+const documented = DATA.coops.filter(c => c.image || c.architect || c.year);
+let extra = null;
+const li = t => t ? `<li>${t}</li>` : '';
+function cardHTML(item, i) {
+  const isNote = item.id.startsWith('n-'), title = isNote ? NOTE_EN[item.id][0] : item.name;
+  let body = '<ul>';
+  if (isNote) body += NOTE_EN[item.id][1].map(li).join('') + `</ul><div class="src">Source: ${item.source.replace(/ \/ /g, ', ')}</div>`;
+  else {
+    body += li(item.kind === 'huile' ? 'Cooperative oil mill' : 'Cooperative winery') + li([item.commune, item.dept].filter(Boolean).join(', '))
+      + li(item.year ? 'Built: ' + item.year : 'Date of construction: to be documented') + li(item.architect ? 'Architect: ' + item.architect : '')
+      + li(item.merimee ? 'Heritage record (Mérimée): ' + item.merimee : '') + '</ul>';
+    if (item.image) body += `<img src="${item.image}" alt="${item.name}" loading="lazy">`;
+    const links = [item.osm ? `<a href="${item.osm}" target="_blank" rel="noopener">OpenStreetMap</a>` : '', item.wikidata ? `<a href="${item.wikidata}" target="_blank" rel="noopener">Wikidata</a>` : '',
+      item.merimee ? `<a href="https://www.pop.culture.gouv.fr/notice/merimee/${item.merimee}" target="_blank" rel="noopener">POP Mérimée</a>` : ''].filter(Boolean).join(' · ');
+    body += `<div class="src">Sources: ${item.source.replace(/ \/ /g, ', ')}${links ? ' · ' + links : ''}${item.image ? ' · photo: Wikimedia Commons' : ''}</div>`;
+  }
+  return `<div class="card" data-id="${item.id}" style="z-index:${i + 1}"><div class="tab" title="${title.replace(/"/g, '&quot;')}">${title}</div><div class="body"><div class="inner">${body}</div></div></div>`;
+}
+function renderCards(q = '') {
+  q = q.trim().toLowerCase();
+  let items = [...DATA.notes, ...documented];
+  if (extra && !items.find(i => i.id === extra.id)) items = [extra, ...items];
+  if (q) items = [...DATA.notes, ...DATA.coops].filter(i => ((i.id.startsWith('n-') ? NOTE_EN[i.id][0] : i.name) + ' ' + (i.commune || i.place || '') + ' ' + (i.dept || '')).toLowerCase().includes(q)).slice(0, 60);
+  strip.innerHTML = items.map(cardHTML).join('');
+  document.getElementById('ccount').textContent = `${items.length} records shown · ${DATA.coops.length} located`;
+  strip.querySelectorAll('.card .tab').forEach(t => t.onclick = () => { const c = t.parentElement; if (c.classList.contains('on')) { c.classList.remove('on'); unpinCard(); return; } openCard(c.dataset.id, false); });
+}
+function setCorpus(open) { document.getElementById('corpus').classList.toggle('open', open); document.body.classList.toggle('corpus-open', open);
+  document.getElementById('corpusBtn').classList.toggle('on', open); setTimeout(drawPits, 460); }
+function openCard(id, fromMap) {
+  goImmersive(); const item = DATA.notes.find(n => n.id === id) || DATA.coops.find(c => c.id === id); if (!item) return;
+  setCorpus(true);
+  if (fromMap && !strip.querySelector(`[data-id="${id}"]`)) { extra = item; renderCards(document.getElementById('search').value); }
+  strip.querySelectorAll('.card').forEach(c => c.classList.toggle('on', c.dataset.id === id));
+  const el = strip.querySelector(`[data-id="${id}"]`); if (el) strip.scrollTo({ left: el.offsetLeft - 120, behavior: 'smooth' });
+  unpinCard();
+  map.flyTo([item.lat, item.lon], Math.max(map.getZoom(), 10), { duration: 1.2 });
+  if (item.image) map.once('moveend', () => { if (!gridStepProj || !strip.querySelector(`.card.on[data-id="${id}"]`)) return;
+    if (!gridOn) { gridOn = true; document.querySelector('.toggle[data-key="grid"]').classList.add('on'); setLayer('grid', true); }
+    cardPin = pinCell(cellAt(L.latLng(item.lat, item.lon)), item.image); });
+}
+let cardPin = null;
+function unpinCard() { if (!cardPin) return; [...pinned].forEach(([k, p]) => { if (p === cardPin) { p.remove(); pinned.delete(k); } }); cardPin = null; }
+document.getElementById('corpusBtn').onclick = () => setCorpus(!document.getElementById('corpus').classList.contains('open'));
+document.getElementById('search').addEventListener('input', e => renderCards(e.target.value));
+strip.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { strip.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+renderCards();
+
+/* ---------- timeline ---------- */
+const svg = document.getElementById('tlsvg');
+function visible(c) { return !c.year || c.year <= yearMax; }
+function applyYear() {
+  document.getElementById('yearlbl').textContent = yearMax;
+  coopMarkers.forEach(m => visible(m.data) ? layers.coops.addLayer(m) : layers.coops.removeLayer(m));
+  noteMarkers.forEach(m => (!m.data.year || m.data.year <= yearMax) ? layers.notes.addLayer(m) : layers.notes.removeLayer(m));
+  const ev = DATA.events.filter(e => e.year <= yearMax).pop();
+  document.getElementById('evlbl').textContent = ev ? `· ${ev.year}: ${ev.label}` : '';
+  drawTimeline();
+}
+function drawTimeline() {
+  const W = svg.clientWidth || 600, pad = 8, x = y => pad + (y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN) * (W - 2 * pad);
+  const counts = {}; [...DATA.coops, ...DATA.notes].forEach(i => { if (i.year) counts[i.year] = (counts[i.year] || 0) + 1; });
+  const maxC = Math.max(1, ...Object.values(counts));
+  let s = `<line x1="${pad}" y1="40" x2="${W - pad}" y2="40" stroke="#f4f1ea" stroke-width=".8"/>`;
+  for (let y = 1900; y <= 1970; y += 10) s += `<line x1="${x(y)}" y1="37" x2="${x(y)}" y2="43" stroke="#f4f1ea" stroke-width=".8"/><text x="${x(y)}" y="56" fill="rgba(244,241,234,.6)" font-size="9.5" font-weight="200" text-anchor="middle" font-family="Helvetica Neue, Arial">${y}</text>`;
+  Object.entries(counts).forEach(([y, c]) => { const h = 5 + 22 * c / maxC; s += `<rect x="${x(+y) - 1.5}" y="${40 - h}" width="3" height="${h}" fill="${+y <= yearMax ? '#f4f1ea' : 'rgba(244,241,234,.25)'}"/>`; });
+  DATA.events.forEach(e => s += `<g><title>${e.year} · ${e.label}</title><circle cx="${x(e.year)}" cy="40" r="3.5" fill="${e.year <= yearMax ? '#e6c65c' : '#0b0b0b'}" stroke="#e6c65c"/></g>`);
+  s += `<line x1="${x(yearMax)}" y1="6" x2="${x(yearMax)}" y2="46" stroke="#e6c65c" stroke-width="1.2"/>`;
+  svg.innerHTML = s;
+  svg.onclick = ev => { const r = svg.getBoundingClientRect(); stop(); goImmersive();
+    yearMax = Math.round(Math.min(1970, Math.max(1900, YEAR_MIN + (ev.clientX - r.left - pad) / (W - 2 * pad) * (YEAR_MAX - YEAR_MIN)))); applyYear(); };
+}
+/* guided reading: each dated building in turn, 3 s on each, then back to the whole map */
+let playTimer = null, playRun = 0, panelWasCollapsed = false;
+const wait = ms => new Promise(r => { playTimer = setTimeout(r, ms); });
+function stop() { playRun++; clearTimeout(playTimer); playTimer = null; document.getElementById('play').textContent = '▶ Play';
+  if (document.body.classList.contains('playing')) { document.body.classList.remove('playing'); if (!panelWasCollapsed) document.body.classList.remove('collapsed'); setTimeout(drawPits, 360); } }
+function allOff() { strip.querySelectorAll('.card.on').forEach(c => c.classList.remove('on')); unpinCard(); clearPins(); }
+document.getElementById('play').onclick = async () => {
+  goImmersive(); if (document.body.classList.contains('playing')) return stop();
+  const run = ++playRun, alive = () => run === playRun;
+  const seq = [...DATA.notes, ...documented].filter(i => i.year).sort((a, b) => a.year - b.year);
+  panelWasCollapsed = document.body.classList.contains('collapsed');
+  document.body.classList.add('playing', 'collapsed'); document.getElementById('play').textContent = '❚❚ Pause';
+  allOff(); setCorpus(true); yearMax = 1900; applyYear(); await wait(500);
+  for (const item of seq) {
+    if (!alive()) return;
+    while (yearMax < item.year) { yearMax = Math.min(item.year, yearMax + 2); applyYear(); await wait(60); if (!alive()) return; }
+    openCard(item.id, false);
+    await wait(1400 + 1500); if (!alive()) return;
+    strip.querySelectorAll('.card.on').forEach(c => c.classList.remove('on')); unpinCard(); await wait(300);
+  }
+  if (!alive()) return;
+  while (yearMax < 1970) { yearMax = Math.min(1970, yearMax + 2); applyYear(); await wait(40); if (!alive()) return; }
+  allOff(); homeView();
+  await wait(1700); if (alive()) stop();
+};
+addEventListener('resize', drawTimeline);
+
+/* ---------- page behaviour ---------- */
+const bar = document.getElementById('bar'); let mapInView = false;
+function goImmersive() { if (mapInView) document.body.classList.add('immersive'); }
+new IntersectionObserver(([en]) => {
+  mapInView = en.intersectionRatio > 0.92; bar.classList.toggle('show', en.intersectionRatio > 0.5); document.body.classList.toggle('mapview', en.intersectionRatio > 0.5);
+  mapInView && !document.body.classList.contains('doc-open') ? map.scrollWheelZoom.enable() : map.scrollWheelZoom.disable();
+  if (en.intersectionRatio < 0.5) document.body.classList.remove('immersive');
+}, { threshold: [0, .25, .5, .75, .92, 1] }).observe(document.getElementById('mapsec'));
+map.on('zoomstart dragstart', goImmersive);
+document.getElementById('peekzone').addEventListener('mouseenter', () => bar.classList.add('peek'));
+bar.addEventListener('mouseleave', () => bar.classList.remove('peek'));
+document.getElementById('cue').onclick = () => document.getElementById('mapsec').scrollIntoView({ behavior: 'smooth' });
+document.getElementById('collapse').onclick = () => { document.body.classList.add('collapsed'); setTimeout(drawPits, 360); };
+document.getElementById('reopen').onclick = () => { document.body.classList.remove('collapsed'); setTimeout(drawPits, 360); };
+
+TOGGLES.forEach(([key, , on]) => setLayer(key, on));
+document.getElementById('resetL').onclick = () => { clearPins(); cardPin = null; if (hover) { hover.remove(); hover = null; } hoverKey = null; TOGGLES.forEach(([key, , on]) => { const el = tg.querySelector(`.toggle[data-key="${key}"]`); if (el.classList.contains('on') !== on) { el.classList.toggle('on', on); setLayer(key, on); } }); };
+/* screenshot presets for print (?shot=lang or ?shot=cave) */
+const SHOT = new URLSearchParams(location.search).get('shot');
+if (SHOT) {
+  document.body.classList.add('shot', 'collapsed', 'immersive');
+  ['bar', 'reopen', 'timeline', 'scrollind', 'peekzone', 'hero'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; });
+  document.querySelector('.leaflet-control-container').style.display = 'none';
+  setTimeout(() => {
+    map.invalidateSize();
+    if (SHOT === 'lang') { map.setView([43.66, 3.75], 8.5, { animate: false });
+      pits.filter(p => !/^H[12]/.test(p.h.title)).forEach(p => p.el.style.display = 'none');
+      pits.splice(0, pits.length, ...pits.filter(p => /^H[12]/.test(p.h.title))); }
+    if (SHOT === 'cave') { const c = DATA.coops.find(x => x.id === (new URLSearchParams(location.search).get('id') || 'wd-Q20669743'));
+      hypOn = false; pitsSvg.style.display = 'none'; document.querySelectorAll('.postit').forEach(e => e.style.display = 'none');
+      map.setView([c.lat - 0.004, c.lon - 0.026], 13.5, { animate: false }); setTimeout(() => pinCell(cellAt(L.latLng(c.lat, c.lon)), c.image), 300);
+      extra = c; renderCards(); setCorpus(true); const el = strip.querySelector(`[data-id="${c.id}"]`); el.classList.add('on'); strip.scrollLeft = el.offsetLeft - 260; }
+    drawPits();
+  }, 300);
+}
+/* always open on the title */
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; scrollTo(0, 0);
+updateLabels(); applyYear(); drawPits();
+const knob = document.querySelector('#scrollind b');
+const updInd = () => { const max = document.documentElement.scrollHeight - innerHeight; knob.style.top = (max > 0 ? scrollY / max : 0) * (150 - 26) + 'px'; };
+addEventListener('scroll', updInd); updInd();
+const farCls = () => document.getElementById('map').classList.toggle('far', map.getZoom() < 8);
+map.on('zoomend', farCls); farCls();
+const luFade = () => layers.landuse.setOpacity(map.getZoom() > 9 ? Math.max(.25, 1 - (map.getZoom() - 9) * .35) : 1);
+map.on('zoomend', luFade); luFade();
+</script>
+</body>
+</html>
